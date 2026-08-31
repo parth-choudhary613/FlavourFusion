@@ -1,10 +1,25 @@
 import React from "react";
+import Signboard from "../assets/SignBoard.png";
+import Fencing from "../assets/Fencing.png";
 
-export function BackgroundElements({ scrollProgress = 0 }) {
+export function BackgroundElements({
+  scrollProgress = 0,
+  signboardX = 200, // Adjust horizontal position (0 - 6000)
+  signboardY = 1500, // Adjust vertical position (e.g. 1200 - 2400 to sit on mountains)
+  signboardWidth = 1200,
+  signboardHeight = 1200,
+
+  fencingX = -4500, // Adjust horizontal position (0 - 6000)
+  fencingY = 1900, // Adjust vertical position (e.g. 1200 - 2400 to sit on mountains)
+  fencingWidth = 12700,
+  fencingHeight = 1200,
+
+
+}) {
   const parallaxX = scrollProgress * -80;
 
   return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <div className="w-screen fixed inset-0 overflow-hidden pointer-events-none z-0">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         xmlnsXlink="http://www.w3.org/1999/xlink"
@@ -13,21 +28,21 @@ export function BackgroundElements({ scrollProgress = 0 }) {
         className="absolute inset-0 w-full h-full"
         style={{
           transform: `translateX(${parallaxX}px) scale(1.05)`,
-          transition: "transform 0.15s ease-out",
+          transition: "transform 0.1s ease-out",
         }}
       >
-        {/* Base background */}
+        {/* 1. Base background (Sky) */}
         <rect
           x="-600"
           y="-400"
           width="7200"
           height="4800"
-          fill="rgb(92.1875%, 92.1875%, 92.1875%)"
+          fill="rgb(255, 255, 240)"
         />
 
-        {/* Back mountain layer */}
+        {/* 2. Back mountain layer */}
         <path
-          fill="rgb(77.539062%, 87.109375%, 91.796875%)"
+          fill="rgb(247, 194, 212)"
           d="M 5995.570312 1168.5
           L 5995.570312 3980.859375
           L -4.433594 3980.859375
@@ -52,9 +67,9 @@ export function BackgroundElements({ scrollProgress = 0 }) {
           Z"
         />
 
-        {/* Middle mountain layer */}
+        {/* 3. Middle mountain layer */}
         <path
-          fill="rgb(60.351562%, 78.709412%, 89.84375%)"
+          fill="rgb(254, 220, 219)"
           d="M 5995.570312 1378.488281
           L 5995.570312 3962.246094
           L 14.734375 3980.859375
@@ -80,9 +95,12 @@ export function BackgroundElements({ scrollProgress = 0 }) {
           Z"
         />
 
-        {/* Front mountain layer */}
+        {/* 4. PNG Image (Signboard) - Placed in front of Middle Mountain & behind Front Mountain */}
+       
+
+        {/* 5. Front mountain layer */}
         <path
-          fill="rgb(50.976562%, 72.851562%, 87.5%)"
+          fill="rgb(246, 225, 208)"
           d="M 5995 1512
           L 5995 3980
           L -4 3980
@@ -102,9 +120,9 @@ export function BackgroundElements({ scrollProgress = 0 }) {
           Z"
         />
 
-        {/* Lower blue mountain */}
+        {/* 6. Lower blue/cream mountain */}
         <path
-          fill="rgb(47.801208%, 67.771912%, 86.326599%)"
+          fill="rgb(252, 250, 235)"
           d="M 5995 1941
           L 5995 3980
           L -4 3980
@@ -123,9 +141,27 @@ export function BackgroundElements({ scrollProgress = 0 }) {
           Z"
         />
 
-        {/* Dark foreground / ground */}
+        <image
+                 href={Signboard}
+                 xlinkHref={Signboard}
+                 x={signboardX}
+                 y={signboardY}
+                 width={signboardWidth}
+                 height={signboardHeight}
+                 preserveAspectRatio="xMidYMid meet"
+               />
+                <image
+                 href={Fencing}
+                 xlinkHref={Fencing}
+                 x={fencingX}
+                 y={fencingY}
+                 width={fencingWidth}
+                 height={fencingHeight}
+                 preserveAspectRatio="xMidYMid meet"
+               />
+        {/* 7. Foreground ground layer */}
         <path
-          fill="rgb(11.401367%, 41.601562%, 58.789062%)"
+          fill="rgb(255, 208, 234)"
           d="M 5995 2226
           L 5995 3932
           C 5995 3959 5973 3980 5945 3980
@@ -147,10 +183,9 @@ export function BackgroundElements({ scrollProgress = 0 }) {
           C 5900 2200 5950 2180 5995 2148
           Z"
         />
-
-        {/* Bottom dark wave */}
+        {/* 8. Bottom wave */}
         <path
-          fill="rgb(8.203125%, 13.696289%, 24.291992%)"
+          fill="rgb(255, 255, 255)"
           d="M 5995 3330
           L 5995 3980
           L -4 3980

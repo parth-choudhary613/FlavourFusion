@@ -1,6 +1,6 @@
 import React from 'react';
 import { useHorizontalScroll } from './hooks/useHorizontalScroll';
-import { BackgroundElements } from './components/BackgroundElements';
+import  BackgroundElements  from './components/BackgroundElements';
 import { Navigation } from './components/Navigation';
 import { HeroSection } from './components/sections/HeroSection';
 import { AboutSection } from './components/sections/AboutSection';
