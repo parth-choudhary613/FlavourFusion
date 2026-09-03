@@ -1,8 +1,144 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
-export const IceCreamTruck = ({ size = 1000, width, height, className, style, ...props }) => {
+/**
+ * IceCreamTruck SVG Component with wheels that only move on mouse/page scroll.
+ *
+ * @param {object} props
+ * @param {number|string} [props.size=1000] - Default size width
+ * @param {number|string} [props.width] - Explicit width
+ * @param {number|string} [props.height] - Explicit height
+ * @param {boolean} [props.scrollControlled=true] - If true, wheels ONLY rotate when scrolling mouse wheel or page
+ * @param {'window'|'element'} [props.scrollTarget='window'] - 'window' listens to whole page; 'element' only listens when hovering over the SVG
+ * @param {number} [props.sensitivity=0.4] - Degree rotation multiplier per scroll notch
+ * @param {number} [props.rotation] - Optional controlled rotation angle in degrees (for GSAP, Lenis, or custom scroll state)
+ * @param {boolean} [props.reverse=false] - Invert scroll rotation direction
+ * @param {boolean} [props.bounce=true] - Subtle chassis suspension bounce while rolling
+ * @param {string} [props.className] - SVG class name
+ * @param {React.CSSProperties} [props.style] - SVG style object
+ */
+export const IceCreamTruck = ({
+  size = 1000,
+  width,
+  height,
+  className,
+  style,
+  scrollControlled = true,
+  scrollTarget = 'window',
+  sensitivity = 0.4,
+  rotation: controlledRotation,
+  reverse = false,
+  bounce = true,
+  ...props
+}) => {
+  const svgRef = useRef(null);
+  const frontWheelRef = useRef(null);
+  const rearWheelRef = useRef(null);
+  const chassisRef = useRef(null);
+
+  // Animation & scroll state refs (prevents unnecessary re-renders during high-frequency scrolls)
+  const currentAngleRef = useRef(0);
+  const targetAngleRef = useRef(0);
+  const isScrollingRef = useRef(false);
+  const stopTimerRef = useRef(null);
+  const rafIdRef = useRef(null);
+
+  // Controlled rotation support (e.g. from parent component or GSAP)
+  useEffect(() => {
+    if (controlledRotation !== undefined) {
+      const rotStr = `rotate(${controlledRotation}deg)`;
+      if (frontWheelRef.current) frontWheelRef.current.style.transform = rotStr;
+      if (rearWheelRef.current) rearWheelRef.current.style.transform = rotStr;
+    }
+  }, [controlledRotation]);
+
+  // Automatic mouse wheel & scroll listener
+  useEffect(() => {
+    if (!scrollControlled || controlledRotation !== undefined) return;
+
+    let lastScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+
+    const handleWheel = (e) => {
+      // e.deltaY > 0: scrolling down (forward), < 0: scrolling up (backward)
+      const dir = reverse ? -1 : 1;
+      const delta = e.deltaY * sensitivity * dir;
+
+      targetAngleRef.current += delta;
+      isScrollingRef.current = true;
+
+      // Stop detection: when scrolling ceases, the wheels immediately stop
+      if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = setTimeout(() => {
+        isScrollingRef.current = false;
+        if (chassisRef.current) {
+          chassisRef.current.style.transform = 'translateY(0px)';
+        }
+      }, 90);
+    };
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const delta = (currentScrollY - lastScrollY) * sensitivity * (reverse ? -1 : 1);
+      lastScrollY = currentScrollY;
+
+      targetAngleRef.current += delta;
+      isScrollingRef.current = true;
+
+      if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = setTimeout(() => {
+        isScrollingRef.current = false;
+        if (chassisRef.current) {
+          chassisRef.current.style.transform = 'translateY(0px)';
+        }
+      }, 90);
+    };
+
+    const targetElement = scrollTarget === 'element' ? svgRef.current : window;
+    if (targetElement) {
+      targetElement.addEventListener('wheel', handleWheel, { passive: true });
+    }
+
+    if (scrollTarget === 'window') {
+      window.addEventListener('scroll', handleScroll, { passive: true });
+    }
+
+    // Smooth physics loop
+    const animate = () => {
+      const diff = targetAngleRef.current - currentAngleRef.current;
+      const velocity = diff * 0.25;
+      currentAngleRef.current += velocity;
+
+      if (Math.abs(diff) > 0.05) {
+        const rotStr = `rotate(${currentAngleRef.current.toFixed(2)}deg)`;
+        if (frontWheelRef.current) frontWheelRef.current.style.transform = rotStr;
+        if (rearWheelRef.current) rearWheelRef.current.style.transform = rotStr;
+
+        // Subtle suspension bounce while rolling
+        if (bounce && isScrollingRef.current && chassisRef.current) {
+          const bounceOffset = Math.sin(Date.now() / 45) * Math.min(Math.abs(velocity) * 0.25, 1.4);
+          chassisRef.current.style.transform = `translateY(${bounceOffset.toFixed(2)}px)`;
+        }
+      }
+
+      rafIdRef.current = requestAnimationFrame(animate);
+    };
+
+    rafIdRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (targetElement) {
+        targetElement.removeEventListener('wheel', handleWheel);
+      }
+      if (scrollTarget === 'window') {
+        window.removeEventListener('scroll', handleScroll);
+      }
+      if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    };
+  }, [scrollControlled, scrollTarget, sensitivity, reverse, bounce, controlledRotation]);
+
   return (
     <svg
+      ref={svgRef}
       xmlns="http://www.w3.org/2000/svg"
       viewBox="85 310 445 270"
       width={width ?? size}
@@ -11,34 +147,33 @@ export const IceCreamTruck = ({ size = 1000, width, height, className, style, ..
       style={style}
       {...props}
     >
-    
-  
-      {/* Ice Cream Cone Topper */}
-      <g>
-        <path
-          fill="#FFCAA1"
-          d="M303.2,395.1l-21.8-43.4c-0.9-1.7,0.1-4.3,2.3-5.9l16-11.8l28.6,57.2l-19.1,5.7 C306.7,397.5,304.1,396.8,303.2,395.1z"
-        />
+      <g ref={chassisRef} style={{ willChange: 'transform' }}/>
+        {/* Ice Cream Cone Topper */}
         <g>
           <path
-            fill="#E8B287"
-            d="M327.2,388.8l-15.8,4.7c-2.5,0.8-5.2,0-6.1-1.7l-21.8-43.4c-0.4-0.7-0.4-1.6-0.1-2.5c-2,1.6-2.8,4.1-2,5.7 l21.8,43.4c0.9,1.7,3.5,2.5,6.1,1.7l19.1-5.7L327.2,388.8z"
+            fill="#FFCAA1"
+            d="M303.2,395.1l-21.8-43.4c-0.9-1.7,0.1-4.3,2.3-5.9l16-11.8l28.6,57.2l-19.1,5.7 C306.7,397.5,304.1,396.8,303.2,395.1z"
           />
-        </g>
-        <path
-          fill="#FFCAA1"
-          d="M301.6,391.9L283,354.7l-29.8,20.2c-1.2,0.8-1.7,2.5-1.1,3.8l11.8,23.6c0.6,1.3,2.3,1.9,3.7,1.4 L301.6,391.9z"
-        />
-        <g>
+          <g>
+            <path
+              fill="#E8B287"
+              d="M327.2,388.8l-15.8,4.7c-2.5,0.8-5.2,0-6.1-1.7l-21.8-43.4c-0.4-0.7-0.4-1.6-0.1-2.5c-2,1.6-2.8,4.1-2,5.7 l21.8,43.4c0.9,1.7,3.5,2.5,6.1,1.7l19.1-5.7L327.2,388.8z"
+            />
+          </g>
           <path
-            fill="#E8B287"
-            d="M300.2,389l-30.7,10.7c-1.4,0.5-3.1-0.2-3.7-1.4l-11.8-23.6c0-0.1-0.1-0.1-0.1-0.2l-0.6,0.4 c-1.2,0.8-1.7,2.5-1.1,3.8l11.8,23.6c0.6,1.3,2.3,1.9,3.7,1.4l34-11.8L300.2,389z"
+            fill="#FFCAA1"
+            d="M301.6,391.9L283,354.7l-29.8,20.2c-1.2,0.8-1.7,2.5-1.1,3.8l11.8,23.6c0.6,1.3,2.3,1.9,3.7,1.4 L301.6,391.9z"
           />
-        </g>
-        <g>
-          <path
-            fill="#E8B287"
-            d="M325.5,389.4l-6.5-5.8l-0.8-8.7l3.6,3.2l-2.5-4.9l-1.4-1.2l-0.2-1.8l-2.5-4.9l0.4,4.8l-6.5-5.8l-0.8-8.7 l3.6,3.2l-2.5-4.9l-1.4-1.2l-0.2-1.8l-2.5-4.9l0.4,4.8l-6.5-5.8l-0.8-8.7l3.6,3.2l-2.5-4.9l-0.3-0.3l-2.8,2.1l0.6,6.7l-4.3-3.9 l-1.7,1.2l6.3,5.6l0.8,8.7l-6.5-5.8l-0.7-8.3l-1.9,1.4l0.4,4.9l-3.2-2.9l-1.7,1.2l5.1,4.6l0.8,8.7l-6.5-5.8l-0.6-6.6 c-0.8,0.6-1.4,1.4-1.9,2.2l0.2,2.4l-0.8-0.7c-0.1,0.7,0,1.3,0.3,1.9l1.6,3.1l-0.7,0.4l0.6,6.9l-4.7-4.2l-3.5,2.4l0.5,5.6l-3.8-3.4 l-1.7,1.2l5.8,5.2l0.8,8.7l-6.5-5.8l-0.7-7.7l-1.9,1.3l0.4,4.4l-2.9-2.6l-1.7,1.2l4.9,4.4l0.8,8.7l-6.5-5.8l-0.6-6.4l-1.9,1.3 l0.3,3.1l-2.1-1.9L256,373l4.1,3.6l0.8,8.7l-6.5-5.8l-0.4-5.1l-0.7,0.5c-0.5,0.4-0.9,0.9-1.1,1.5l0.1,1.1l-0.3-0.3 c0,0.5,0,1,0.3,1.5l2.6,5.2l-0.1-1.5l6.5,5.8l0.8,8.7l-1.1-1l3.2,6.4c0.1,0.3,0.3,0.5,0.5,0.7l-0.1-1.1l2.3,2c0.3,0,0.7,0,1-0.2 l1.3-0.5l-4.9-4.4l-0.8-8.7l6.5,5.8l0.6,6.7l2-0.7l-0.4-4.1l3.4,3l2.2-0.8l-5.8-5.2l-0.8-8.7l6.5,5.8l0.7,7.9l2-0.7l-0.5-5.2 l4.3,3.9l3.9-1.4l-0.6-6.4l5.3,4.7l3.1-1.1l-0.7-7.5l6.3,5.6l0.2-0.1l1.6,3.1c0.2,0.4,0.5,0.7,0.8,1l-0.2-1.8l3.2,2.8 c0.7,0,1.5-0.1,2.2-0.3l0.4-0.1l-6-5.4l-0.8-8.7l6.5,5.8l0.7,8.1l2-0.6l-0.5-5.6l4.8,4.3l3.5-1.1l-0.6-7.1l6.1,5.4l2.4-0.7 l-0.1-1.7l-2.5-4.9L325.5,389.4z M316,372.9l0.8,8.7l-6.5-5.8l-0.8-8.7L316,372.9z M308.1,373.8l-6.5-5.8l-0.8-8.7l6.5,5.8 L308.1,373.8z M293.1,363.2l6.5,5.8l0.8,8.7l-6.5-5.8L293.1,363.2z M292.7,381.5l-6.5-5.8l-0.8-8.7l6.5,5.8L292.7,381.5z M299.8,347.7l6.5,5.8l0.8,8.7l-6.5-5.8L299.8,347.7z M292.1,351.5l6.5,5.8l0.8,8.7l-6.5-5.8L292.1,351.5z M284.4,355.4l6.5,5.8 l0.8,8.7l-6.5-5.8L284.4,355.4z M276.7,359.2l6.5,5.8l0.8,8.7l-6.5-5.8L276.7,359.2z M277.7,370.9l6.5,5.8l0.8,8.7l-6.5-5.8 L277.7,370.9z M269.6,393.1l-6.5-5.8l-0.8-8.7l6.5,5.8L269.6,393.1z M270.8,383.4l-0.8-8.7l6.5,5.8l0.8,8.7L270.8,383.4z M286,397 l-6.5-5.8l-0.8-8.7l6.5,5.8L286,397z M293.7,393.1l-6.5-5.8l-0.8-8.7l6.5,5.8L293.7,393.1z M301.4,389.3l-6.5-5.8l-0.8-8.7 l6.5,5.8L301.4,389.3z M302.6,379.6l-0.8-8.7l6.5,5.8l0.8,8.7L302.6,379.6z M317.8,393.2l-6.5-5.8l-0.8-8.7l6.5,5.8L317.8,393.2z"
+          <g>
+            <path
+              fill="#E8B287"
+              d="M300.2,389l-30.7,10.7c-1.4,0.5-3.1-0.2-3.7-1.4l-11.8-23.6c0-0.1-0.1-0.1-0.1-0.2l-0.6,0.4 c-1.2,0.8-1.7,2.5-1.1,3.8l11.8,23.6c0.6,1.3,2.3,1.9,3.7,1.4l34-11.8L300.2,389z"
+            />
+          </g>
+          <g>
+            <path
+              fill="#E8B287"
+              d="M325.5,389.4l-6.5-5.8l-0.8-8.7l3.6,3.2l-2.5-4.9l-1.4-1.2l-0.2-1.8l-2.5-4.9l0.4,4.8l-6.5-5.8l-0.8-8.7 l3.6,3.2l-2.5-4.9l-1.4-1.2l-0.2-1.8l-2.5-4.9l0.4,4.8l-6.5-5.8l-0.8-8.7l3.6,3.2l-2.5-4.9l-0.3-0.3l-2.8,2.1l0.6,6.7l-4.3-3.9 l-1.7,1.2l6.3,5.6l0.8,8.7l-6.5-5.8l-0.7-8.3l-1.9,1.4l0.4,4.9l-3.2-2.9l-1.7,1.2l5.1,4.6l0.8,8.7l-6.5-5.8l-0.6-6.6 c-0.8,0.6-1.4,1.4-1.9,2.2l0.2,2.4l-0.8-0.7c-0.1,0.7,0,1.3,0.3,1.9l1.6,3.1l-0.7,0.4l0.6,6.9l-4.7-4.2l-3.5,2.4l0.5,5.6l-3.8-3.4 l-1.7,1.2l5.8,5.2l0.8,8.7l-6.5-5.8l-0.7-7.7l-1.9,1.3l0.4,4.4l-2.9-2.6l-1.7,1.2l4.9,4.4l0.8,8.7l-6.5-5.8l-0.6-6.4l-1.9,1.3 l0.3,3.1l-2.1-1.9L256,373l4.1,3.6l0.8,8.7l-6.5-5.8l-0.4-5.1l-0.7,0.5c-0.5,0.4-0.9,0.9-1.1,1.5l0.1,1.1l-0.3-0.3 c0,0.5,0,1,0.3,1.5l2.6,5.2l-0.1-1.5l6.5,5.8l0.8,8.7l-1.1-1l3.2,6.4c0.1,0.3,0.3,0.5,0.5,0.7l-0.1-1.1l2.3,2c0.3,0,0.7,0,1-0.2 l1.3-0.5l-4.9-4.4l-0.8-8.7l6.5,5.8l0.6,6.7l2-0.7l-0.4-4.1l3.4,3l2.2-0.8l-5.8-5.2l-0.8-8.7l6.5,5.8l0.7,7.9l2-0.7l-0.5-5.2 l4.3,3.9l3.9-1.4l-0.6-6.4l5.3,4.7l3.1-1.1l-0.7-7.5l6.3,5.6l0.2-0.1l1.6,3.1c0.2,0.4,0.5,0.7,0.8,1l-0.2-1.8l3.2,2.8 c0.7,0,1.5-0.1,2.2-0.3l0.4-0.1l-6-5.4l-0.8-8.7l6.5,5.8l0.7,8.1l2-0.6l-0.5-5.6l4.8,4.3l3.5-1.1l-0.6-7.1l6.1,5.4l2.4-0.7 l-0.1-1.7l-2.5-4.9L325.5,389.4z M316,372.9l0.8,8.7l-6.5-5.8l-0.8-8.7L316,372.9z M308.1,373.8l-6.5-5.8l-0.8-8.7l6.5,5.8 L308.1,373.8z M293.1,363.2l6.5,5.8l0.8,8.7l-6.5-5.8L293.1,363.2z M292.7,381.5l-6.5-5.8l-0.8-8.7l6.5,5.8L292.7,381.5z M299.8,347.7l6.5,5.8l0.8,8.7l-6.5-5.8L299.8,347.7z M292.1,351.5l6.5,5.8l0.8,8.7l-6.5-5.8L292.1,351.5z M284.4,355.4l6.5,5.8 l0.8,8.7l-6.5-5.8L284.4,355.4z M276.7,359.2l6.5,5.8l0.8,8.7l-6.5-5.8L276.7,359.2z M277.7,370.9l6.5,5.8l0.8,8.7l-6.5-5.8 L277.7,370.9z M269.6,393.1l-6.5-5.8l-0.8-8.7l6.5,5.8L269.6,393.1z M270.8,383.4l-0.8-8.7l6.5,5.8l0.8,8.7L270.8,383.4z M286,397 l-6.5-5.8l-0.8-8.7l6.5,5.8L286,397z M293.7,393.1l-6.5-5.8l-0.8-8.7l6.5,5.8L293.7,393.1z M301.4,389.3l-6.5-5.8l-0.8-8.7 l6.5,5.8L301.4,389.3z M302.6,379.6l-0.8-8.7l6.5,5.8l0.8,8.7L302.6,379.6z M317.8,393.2l-6.5-5.8l-0.8-8.7l6.5,5.8L317.8,393.2z"
           />
         </g>
         <g>
@@ -57,10 +192,8 @@ export const IceCreamTruck = ({ size = 1000, width, height, className, style, ..
             />
           </g>
         </g>
-      </g>
 
-      {/* Truck Body, Windows, Awning, Wheels */}
-      <g>
+        {/* Truck Body Base */}
         <rect x="182.7" y="538.9" fill="#414042" width="264.7" height="7.3" />
         <path
           fill="#FFFA7F"
@@ -102,37 +235,6 @@ export const IceCreamTruck = ({ size = 1000, width, height, className, style, ..
           fill="#19DCE0"
           d="M190.4,530.9c0.4,0.9,0.6,1.9,0.6,2.9v5.8c0,4.2-3.4,7.7-7.7,7.7h-48c-2,0-3.7-0.7-5.1-2 c1.1,2.8,3.9,4.8,7.1,4.8h48c4.2,0,7.7-3.4,7.7-7.7v-5.8C193,534.3,192,532.3,190.4,530.9z"
         />
-
-        {/* Front Wheel */}
-        <g>
-          <g>
-            <path
-              fill="#0D0B0C"
-              d="M248.8,539h-55.4c-0.3,1.6-0.4,3.2-0.4,4.9c0,0.8,0,1.5,0.1,2.2h56.1c0.1-0.7,0.1-1.5,0.1-2.2 C249.3,542.2,249.1,540.6,248.8,539z"
-            />
-            <path
-              fill="#FF9195"
-              d="M248.8,538.9c-2.4-13.1-13.9-23.1-27.7-23.1c-13.8,0-25.3,10-27.7,23.1c0,0,0,0.1,0,0.1h55.4 C248.8,539,248.8,538.9,248.8,538.9z"
-            />
-          </g>
-          <circle fill="#231F20" cx="221.1" cy="543.9" r="23.6" />
-          <circle fill="#414042" cx="221.1" cy="543.9" r="21.3" />
-          <path
-            fill="#808285"
-            d="M204.7,537.1c-0.2,0-0.4,0-0.6-0.1c-0.7-0.3-1-1.2-0.6-1.8c2.5-5,7.2-8.9,12.6-10.3 c0.7-0.2,1.5,0.2,1.7,1c0.2,0.7-0.2,1.5-1,1.7c-4.6,1.2-8.7,4.5-10.8,8.8C205.7,536.8,205.2,537.1,204.7,537.1z"
-          />
-          <circle fill="#231F20" cx="221.1" cy="543.9" r="13.5" />
-          <circle fill="#E7E4DF" cx="221.1" cy="543.9" r="11.6" />
-          <circle fill="#414042" cx="221.1" cy="543.9" r="2.2" />
-          <circle fill="#414042" cx="221.1" cy="536.8" r="2.2" />
-          <circle fill="#414042" cx="216.1" cy="538.9" r="2.2" />
-          <circle fill="#414042" cx="214" cy="543.9" r="2.2" />
-          <circle fill="#414042" cx="216.1" cy="548.9" r="2.2" />
-          <circle fill="#414042" cx="221.1" cy="551" r="2.2" />
-          <circle fill="#414042" cx="226.2" cy="548.9" r="2.2" />
-          <circle fill="#414042" cx="228.2" cy="543.9" r="2.2" />
-          <circle fill="#414042" cx="226.2" cy="538.9" r="2.2" />
-        </g>
 
         <path fill="#FFFFFF" d="M162.4,515.3h5.5c1.9,0,3.5,1.6,3.5,3.5v2.5c0,1.9-1.6,3.5-3.5,3.5h-5.5V515.3z" />
 
@@ -228,31 +330,6 @@ export const IceCreamTruck = ({ size = 1000, width, height, className, style, ..
           />
         </g>
 
-        {/* Rear Wheel */}
-        <g>
-          <path
-            fill="#0D0B0C"
-            d="M422.1,539h-55.4c-0.3,1.6-0.4,3.2-0.4,4.9c0,0.8,0,1.5,0.1,2.2h56.1c0.1-0.7,0.1-1.5,0.1-2.2 C422.6,542.2,422.4,540.6,422.1,539z"
-          />
-          <circle fill="#231F20" cx="394.4" cy="543.9" r="23.6" />
-          <circle fill="#414042" cx="394.4" cy="543.9" r="21.3" />
-          <path
-            fill="#808285"
-            d="M378,537.1c-0.2,0-0.4,0-0.6-0.1c-0.7-0.3-1-1.2-0.6-1.8c2.5-5,7.2-8.9,12.6-10.3c0.7-0.2,1.5,0.2,1.7,1 c0.2,0.7-0.2,1.5-1,1.7c-4.6,1.2-8.7,4.5-10.8,8.8C379,536.8,378.5,537.1,378,537.1z"
-          />
-          <circle fill="#231F20" cx="394.4" cy="543.9" r="13.5" />
-          <circle fill="#E7E4DF" cx="394.4" cy="543.9" r="11.6" />
-          <circle fill="#414042" cx="394.4" cy="543.9" r="2.2" />
-          <circle fill="#414042" cx="394.4" cy="536.8" r="2.2" />
-          <circle fill="#414042" cx="389.4" cy="538.9" r="2.2" />
-          <circle fill="#414042" cx="387.3" cy="543.9" r="2.2" />
-          <circle fill="#414042" cx="389.4" cy="548.9" r="2.2" />
-          <circle fill="#414042" cx="394.4" cy="551" r="2.2" />
-          <circle fill="#414042" cx="399.5" cy="548.9" r="2.2" />
-          <circle fill="#414042" cx="401.5" cy="543.9" r="2.2" />
-          <circle fill="#414042" cx="399.5" cy="538.9" r="2.2" />
-        </g>
-
         {/* Rear Fender Arch */}
         <g>
           <path
@@ -295,23 +372,101 @@ export const IceCreamTruck = ({ size = 1000, width, height, className, style, ..
           <path fill="#BBEDFF" d="M446.3,414.7l-0.2-1.5h-5.3c-7.3,7.3-14.6,14.6-21.9,21.9v6.9C428,432.9,437.1,423.8,446.3,414.7z" />
           <path fill="#BBEDFF" d="M447.2,422.7l-0.4-3.6c-9.3,9.3-18.6,18.6-27.9,27.8v4.1L447.2,422.7z" />
         </g>
-      </g>
 
-      {/* Cab Mirrors / Side Accents */}
-      <path
-        fill="#6ACBF2"
-        d="M446.8,411.9h-1.9c-0.4,0-0.8-0.3-0.8-0.8v-9.8c0-0.4,0.3-0.8,0.8-0.8h1.9c1,0,1.9,0.8,1.9,1.9v7.6 C448.6,411,447.8,411.9,446.8,411.9z"
-      />
-      <g>
+        {/* Cab Mirrors / Side Accents */}
         <path
-          fill="#FFA8AB"
-          d="M457.3,435.1L457.3,435.1c-0.4,0-0.7-0.3-0.7-0.7v-23.2c0-1.5-1.2-2.7-2.7-2.7h-5.3v-4.6h5.3 c4,0,7.3,3.3,7.3,7.3v20C461.2,433.4,459.5,435.1,457.3,435.1z"
+          fill="#6ACBF2"
+          d="M446.8,411.9h-1.9c-0.4,0-0.8-0.3-0.8-0.8v-9.8c0-0.4,0.3-0.8,0.8-0.8h1.9c1,0,1.9,0.8,1.9,1.9v7.6 C448.6,411,447.8,411.9,446.8,411.9z"
+        />
+        <g>
+          <path
+            fill="#FFA8AB"
+            d="M457.3,435.1L457.3,435.1c-0.4,0-0.7-0.3-0.7-0.7v-23.2c0-1.5-1.2-2.7-2.7-2.7h-5.3v-4.6h5.3 c4,0,7.3,3.3,7.3,7.3v20C461.2,433.4,459.5,435.1,457.3,435.1z"
+          />
+        </g>
+        <path
+          fill="#2EF2F7"
+          d="M452.5,439L452.5,439c2.3,0,4.1-1.8,4.1-4.1v-14.6c0-2.3-1.8-4.1-4.1-4.1l0,0c-0.6,0-1.2,0.5-1.2,1.2v20.5 C451.4,438.5,451.9,439,452.5,439z"
         />
       </g>
-      <path
-        fill="#2EF2F7"
-        d="M452.5,439L452.5,439c2.3,0,4.1-1.8,4.1-4.1v-14.6c0-2.3-1.8-4.1-4.1-4.1l0,0c-0.6,0-1.2,0.5-1.2,1.2v20.5 C451.4,438.5,451.9,439,452.5,439z"
-      />
+
+      {/* Front Wheel (x=221.1) */}
+      <g>
+        {/* Stationary Ground Shadow & Wheel Well */}
+        <g>
+          <path
+            fill="#0D0B0C"
+            d="M248.8,539h-55.4c-0.3,1.6-0.4,3.2-0.4,4.9c0,0.8,0,1.5,0.1,2.2h56.1c0.1-0.7,0.1-1.5,0.1-2.2 C249.3,542.2,249.1,540.6,248.8,539z"
+          />
+          <path
+            fill="#FF9195"
+            d="M248.8,538.9c-2.4-13.1-13.9-23.1-27.7-23.1c-13.8,0-25.3,10-27.7,23.1c0,0,0,0.1,0,0.1h55.4 C248.8,539,248.8,538.9,248.8,538.9z"
+          />
+        </g>
+        {/* Scroll-Rotated Wheel Elements */}
+        <g
+          ref={frontWheelRef}
+          style={{
+            transformBox: 'fill-box',
+            transformOrigin: 'center',
+            willChange: 'transform',
+          }}
+        >
+          <circle fill="#231F20" cx="221.1" cy="543.9" r="23.6" />
+          <circle fill="#414042" cx="221.1" cy="543.9" r="21.3" />
+          <path
+            fill="#808285"
+            d="M204.7,537.1c-0.2,0-0.4,0-0.6-0.1c-0.7-0.3-1-1.2-0.6-1.8c2.5-5,7.2-8.9,12.6-10.3 c0.7-0.2,1.5,0.2,1.7,1c0.2,0.7-0.2,1.5-1,1.7c-4.6,1.2-8.7,4.5-10.8,8.8C205.7,536.8,205.2,537.1,204.7,537.1z"
+          />
+          <circle fill="#231F20" cx="221.1" cy="543.9" r="13.5" />
+          <circle fill="#E7E4DF" cx="221.1" cy="543.9" r="11.6" />
+          <circle fill="#414042" cx="221.1" cy="543.9" r="2.2" />
+          <circle fill="#414042" cx="221.1" cy="536.8" r="2.2" />
+          <circle fill="#414042" cx="216.1" cy="538.9" r="2.2" />
+          <circle fill="#414042" cx="214" cy="543.9" r="2.2" />
+          <circle fill="#414042" cx="216.1" cy="548.9" r="2.2" />
+          <circle fill="#414042" cx="221.1" cy="551" r="2.2" />
+          <circle fill="#414042" cx="226.2" cy="548.9" r="2.2" />
+          <circle fill="#414042" cx="228.2" cy="543.9" r="2.2" />
+          <circle fill="#414042" cx="226.2" cy="538.9" r="2.2" />
+        </g>
+      </g>
+
+      {/* Rear Wheel (x=394.4) */}
+      <g>
+        {/* Stationary Ground Shadow */}
+        <path
+          fill="#0D0B0C"
+          d="M422.1,539h-55.4c-0.3,1.6-0.4,3.2-0.4,4.9c0,0.8,0,1.5,0.1,2.2h56.1c0.1-0.7,0.1-1.5,0.1-2.2 C422.6,542.2,422.4,540.6,422.1,539z"
+        />
+        {/* Scroll-Rotated Wheel Elements */}
+        <g
+          ref={rearWheelRef}
+          style={{
+            transformBox: 'fill-box',
+            transformOrigin: 'center',
+            willChange: 'transform',
+          }}
+        >
+          <circle fill="#231F20" cx="394.4" cy="543.9" r="23.6" />
+          <circle fill="#414042" cx="394.4" cy="543.9" r="21.3" />
+          <path
+            fill="#808285"
+            d="M378,537.1c-0.2,0-0.4,0-0.6-0.1c-0.7-0.3-1-1.2-0.6-1.8c2.5-5,7.2-8.9,12.6-10.3c0.7-0.2,1.5,0.2,1.7,1 c0.2,0.7-0.2,1.5-1,1.7c-4.6,1.2-8.7,4.5-10.8,8.8C379,536.8,378.5,537.1,378,537.1z"
+          />
+          <circle fill="#231F20" cx="394.4" cy="543.9" r="13.5" />
+          <circle fill="#E7E4DF" cx="394.4" cy="543.9" r="11.6" />
+          <circle fill="#414042" cx="394.4" cy="543.9" r="2.2" />
+          <circle fill="#414042" cx="394.4" cy="536.8" r="2.2" />
+          <circle fill="#414042" cx="389.4" cy="538.9" r="2.2" />
+          <circle fill="#414042" cx="387.3" cy="543.9" r="2.2" />
+          <circle fill="#414042" cx="389.4" cy="548.9" r="2.2" />
+          <circle fill="#414042" cx="394.4" cy="551" r="2.2" />
+          <circle fill="#414042" cx="399.5" cy="548.9" r="2.2" />
+          <circle fill="#414042" cx="401.5" cy="543.9" r="2.2" />
+          <circle fill="#414042" cx="399.5" cy="538.9" r="2.2" />
+        </g>
+      </g>
     </svg>
   );
 };
