@@ -16,7 +16,7 @@ import "./HeroSection.css";
 
 export function HeroSection({ onExplore, velocity = 0 }) {
   return (
-    <section className="relative w-screen h-screen flex-shrink-0 overflow-hidden select-none">
+    <section className="relative w-screen h-screen shrink-0 overflow-hidden select-none">
 
       {/* =====================================================
           DECORATIVE SKY ELEMENTS
@@ -64,7 +64,7 @@ export function HeroSection({ onExplore, velocity = 0 }) {
         className="absolute top-[7%] left-[15%] animate-[bounce_5s_ease-in-out_infinite]"
       >
         <div className="relative w-16 h-20">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-14 h-16 rounded-[50%] bg-gradient-to-b from-[#d282a6] to-[#e8b4bc] border-2 border-[#886351]/40 overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-14 h-16 rounded-[50%] bg-linear-to-b from-[#d282a6] to-[#e8b4bc] border-2 border-[#886351]/40 overflow-hidden">
             <div className="absolute left-1/2 -translate-x-1/2 h-full w-2 bg-[#fff7df]/80" />
             <div className="absolute left-2 top-0 h-full w-2 bg-[#fff7df]/70" />
             <div className="absolute right-2 top-0 h-full w-2 bg-[#fff7df]/70" />
@@ -78,7 +78,7 @@ export function HeroSection({ onExplore, velocity = 0 }) {
         className="absolute top-[13%] right-[14%] scale-75 animate-[bounce_6s_ease-in-out_infinite]"
       >
         <div className="relative w-16 h-20">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-14 h-16 rounded-[50%] bg-gradient-to-b from-[#8ecae6] to-[#d1a473] border-2 border-[#886351]/30 overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-14 h-16 rounded-[50%] bg-linear-to-b from-[#8ecae6] to-[#d1a473] border-2 border-[#886351]/30 overflow-hidden">
             <div className="absolute left-1/2 -translate-x-1/2 h-full w-2 bg-white/70" />
             <div className="absolute left-2 top-0 h-full w-2 bg-white/60" />
           </div>
@@ -124,7 +124,7 @@ export function HeroSection({ onExplore, velocity = 0 }) {
             />
 
             <Heart
-              className="absolute top-2 -right-10 w-5 h-5 text-[#e8b4bc] fill-[#e8b4bc]/20 rotate-[20deg]"
+              className="absolute top-2 -right-10 w-5 h-5 text-[#e8b4bc] fill-[#e8b4bc]/20 rotate-20"
             />
 
           <h1 className="flavour-title">
@@ -191,7 +191,7 @@ export function HeroSection({ onExplore, velocity = 0 }) {
                 px-7
                 py-3.5
                 rounded-2xl
-                bg-gradient-to-r
+                bg-linear-to-r
                 from-[#8ecae6]
                 via-[#8ecae6]
                 to-[#d282a6]
